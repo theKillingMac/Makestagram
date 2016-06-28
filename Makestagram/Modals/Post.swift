@@ -8,6 +8,7 @@
 
 import Foundation
 import Parse
+import Bond
 
 //To create a custom Parse class you need to inherit from PFObject and implement the PFSubclassing protocol
 class Post : PFObject, PFSubclassing {
@@ -16,6 +17,8 @@ class Post : PFObject, PFSubclassing {
 	@NSManaged var imageFile: PFFile?
 	@NSManaged var user: PFUser?
 	var photoUploadTask: UIBackgroundTaskIdentifier?
+	var image: Observable<UIImage?> = Observable(nil)
+	var likes: Observable<[PFUser]?> = Observable(nil)
 	
 	
 	//MARK: PFSubclassing Protocol
@@ -38,10 +41,11 @@ class Post : PFObject, PFSubclassing {
 	}
 	
 	
-	var image: UIImage?
+
+
 	
 	func uploadPost() {
-		if let image = image {
+		if let image = image.value {
 			// When the uploadPost method is called, we grab the photo to be uploaded from the image property; turn it into a PFFile called imageFile. We used guard to exit the uploadPost() method early if creating the imageData or imageFile fail for some reason.
 			guard let imageData = UIImageJPEGRepresentation(image, 0.8) else {return}
 			guard let imageFile = PFFile(name: "image.jpg", data: imageData) else {return}
@@ -61,5 +65,68 @@ class Post : PFObject, PFSubclassing {
 			
 		}
 	}
+	
+	
+	func downloadImage() {
+		// if image is not downloaded yet, get it
+		if (image.value == nil) {
+			imageFile?.getDataInBackgroundWithBlock { (data: NSData?, error: NSError?) -> Void in
+				if let data = data {
+					let image = UIImage(data: data, scale:1.0)!
+					// 3
+					self.image.value = image
+				}
+			}
+		}
+	}
+	
+	
+	
+	func fetchLikes() {
+		// If not nil, then likes array already has some values so we can skip!
+		if (likes.value != nil) {
+			return
+		}
+		
+		// 2
+		ParseHelper.likesForPost(self, completionBlock: { (likes: [PFObject]?, error: NSError?) -> Void in
+			// 3
+			let validLikes = likes?.filter { like in like[ParseHelper.ParseLikeFromUser] != nil }
+			
+			// 4
+			self.likes.value = validLikes?.map { like in
+				let fromUser = like[ParseHelper.ParseLikeFromUser] as! PFUser
+				
+				return fromUser
+			}
+		})
+	}
+	
+	
+	func doesUserLikePost(user: PFUser) -> Bool {
+		if let likes = likes.value {
+			return likes.contains(user)
+		} else {
+			return false
+		}
+	}
+	
+	func toggleLikePost(user: PFUser){
+		if (doesUserLikePost(user)){
+			//user has liked post, so we need to unlike
+			
+			likes.value = likes.value?.filter {$0 != user}
+			ParseHelper.unlikePost(user, post: self)
+			
+		}else{
+			likes.value?.append(user)
+			ParseHelper.likePost(user, post: self)
+		}
+	}
+	
+	
+
+	
+	
 	
 }

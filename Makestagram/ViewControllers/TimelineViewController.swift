@@ -19,40 +19,12 @@ class TimelineViewController: UIViewController, UITabBarControllerDelegate,UITab
 	override func viewWillAppear(animated: Bool) {
 		super.viewWillAppear(animated)
 		
-		let postsFromThisUser = Post.query()
-		postsFromThisUser!.whereKey("user", equalTo: PFUser.currentUser()!)
 		
-		let followingQuery = PFQuery(className: "Follow")
-		followingQuery.whereKey("fromUser", equalTo: PFUser.currentUser()!)
-		
-		let postsFromFollowedUsers = Post.query()
-		postsFromFollowedUsers!.whereKey("users", matchesKey: "toUser", inQuery: followingQuery)
-		
-		let query = PFQuery.orQueryWithSubqueries([postsFromFollowedUsers!, postsFromThisUser!])
-		
-		
-		//We define that the combined query should also fetch the PFUser associated with a post. As you might remember, we are storing a pointer to a user object in the user column of each post. By using the includeKey method we tell Parse to resolve that pointer and download all the information about the user along with the post. We will need the username later when we display posts in our timeline.
-		query.includeKey("user")
-		
-		
-		query.orderByDescending("createdAt")
-		
-		query.findObjectsInBackgroundWithBlock{ (result: [PFObject]?, error: NSError?) -> Void in
+		ParseHelper.timelineRequestForCurrentUser {
+			(result: [PFObject]?, error: NSError?) -> Void in
 			self.posts = result as? [Post] ?? []
-			
-			for post in self.posts {
-				do {
-					let data = try post.imageFile?.getData()
-					post.image = UIImage(data: data!, scale:1.0)
-				} catch {
-					print("could not get image")
-				}
-			}
-
-			
 			self.tableView.reloadData()
 		}
-
 		
 	}
 	
@@ -76,7 +48,10 @@ class TimelineViewController: UIViewController, UITabBarControllerDelegate,UITab
 	
 	func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
 		let cell = tableView.dequeueReusableCellWithIdentifier("PostCell") as! PostTableViewCell
-		cell.postImageView.image = posts[indexPath.row].image
+		let post = posts[indexPath.row]
+		post.downloadImage()
+		post.fetchLikes()
+		cell.post = post
 		
 		return cell
 	}
@@ -99,7 +74,7 @@ class TimelineViewController: UIViewController, UITabBarControllerDelegate,UITab
 		photoTakingHelper = PhotoTakingHelper(viewController: self.tabBarController! ) { (image: UIImage?) in
 			print("got a call back")
 			let post = Post()
-			post.image = image
+			post.image.value = image!
 			post.uploadPost()
 		}
 		
