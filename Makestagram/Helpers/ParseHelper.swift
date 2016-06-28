@@ -35,7 +35,8 @@ class ParseHelper{
 	
 	
 	
-	static func timelineRequestForCurrentUser(completionBlock: PFQueryArrayResultBlock) {
+	//MARK: Timeline request helper
+	static func timelineRequestForCurrentUser(range: Range<Int>, completionBlock: PFQueryArrayResultBlock) {
 		let followingQuery = PFQuery(className: ParseFollowClass)
 		followingQuery.whereKey(ParseFollowFromUser, equalTo:PFUser.currentUser()!)
 		
@@ -51,8 +52,11 @@ class ParseHelper{
 		query.includeKey(ParsePostUser)
 		query.orderByDescending(ParsePostCreatedAt)
 		
+		query.skip = range.startIndex
+		query.limit = range.endIndex - range.startIndex
+		
 		query.findObjectsInBackgroundWithBlock(completionBlock)
-	
+		
 	}
 	
 	
@@ -91,6 +95,7 @@ class ParseHelper{
 	
 }
 
+//MARK: extensions
 extension PFObject {
 	
 	public override func isEqual(object: AnyObject?) -> Bool {

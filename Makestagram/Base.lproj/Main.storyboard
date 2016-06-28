@@ -147,6 +147,7 @@
                                 </prototypes>
                                 <connections>
                                     <outlet property="dataSource" destination="A2a-EU-Kgv" id="RjY-2J-4K8"/>
+                                    <outlet property="delegate" destination="A2a-EU-Kgv" id="wTD-3G-GbE"/>
                                 </connections>
                             </tableView>
                         </subviews>
